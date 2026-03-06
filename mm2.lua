@@ -3,8 +3,8 @@ local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local Window = Rayfield:CreateWindow({
    Name = "Emfein Hub - MM2",
    LoadingTitle = "Murder Mystery 2",
-   LoadingSubtitle = "v1.0",
-   ConfigurationSaving = { Enabled = false },
+   LoadingSubtitle = "Coin Walk Farm",
+   ConfigurationSaving = {Enabled = false},
    KeySystem = false
 })
 
@@ -14,25 +14,26 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 local Settings = {
-   MurderESP = false,
-   SheriffESP = false,
-   CoinFarm = false,
-   WalkSpeed = 16
+    CoinFarm = false,
+    MurderESP = false,
+    SheriffESP = false
 }
 
--- ROLE BULMA
+-- ROLE TESPİTİ
 local function getRole(player)
+
     if player.Backpack:FindFirstChild("Knife") or
-       player.Character:FindFirstChild("Knife") then
+       (player.Character and player.Character:FindFirstChild("Knife")) then
         return "Murderer"
     end
-    
+
     if player.Backpack:FindFirstChild("Gun") or
-       player.Character:FindFirstChild("Gun") then
+       (player.Character and player.Character:FindFirstChild("Gun")) then
         return "Sheriff"
     end
-    
+
     return "Innocent"
+
 end
 
 -- ESP
@@ -47,6 +48,7 @@ local function createESP(player)
     RunService.RenderStepped:Connect(function()
 
         if not player.Character then return end
+
         local root = player.Character:FindFirstChild("HumanoidRootPart")
         if not root then return end
 
@@ -69,6 +71,7 @@ local function createESP(player)
 
             box.Size = Vector2.new(2000/pos.Z,3000/pos.Z)
             box.Position = Vector2.new(pos.X-box.Size.X/2,pos.Y-box.Size.Y/2)
+
             box.Visible = true
 
         else
@@ -76,6 +79,7 @@ local function createESP(player)
         end
 
     end)
+
 end
 
 for _,p in pairs(Players:GetPlayers()) do
@@ -84,35 +88,99 @@ end
 
 Players.PlayerAdded:Connect(createESP)
 
+-- EN YAKIN COIN
+local function getClosestCoin()
+
+    local closest = nil
+    local shortest = math.huge
+
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    for _,v in pairs(workspace:GetDescendants()) do
+
+        if v.Name == "Coin_Server" or v.Name == "CoinContainer" then
+
+            for _,coin in pairs(v:GetChildren()) do
+
+                if coin:IsA("Part") then
+
+                    local dist = (root.Position - coin.Position).Magnitude
+
+                    if dist < shortest then
+                        shortest = dist
+                        closest = coin
+                    end
+
+                end
+
+            end
+
+        end
+
+    end
+
+    return closest
+
+end
+
+-- COINE YÜRÜ
+local function walkToCoin(coin)
+
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    local humanoid = char:FindFirstChild("Humanoid")
+    if not humanoid then return end
+
+    humanoid:MoveTo(coin.Position)
+
+end
+
 -- COIN FARM
-local function coinFarm()
+local function startCoinFarm()
 
     while Settings.CoinFarm do
-        for _,v in pairs(workspace:GetDescendants()) do
-            if v.Name == "CoinContainer" then
-                for _,coin in pairs(v:GetChildren()) do
-                    if coin:IsA("Part") then
-                        LocalPlayer.Character.HumanoidRootPart.CFrame =
-                        coin.CFrame
-                        task.wait(0.1)
-                    end
-                end
-            end
+
+        local coin = getClosestCoin()
+
+        if coin then
+            walkToCoin(coin)
         end
-        task.wait(1)
+
+        task.wait(0.4)
+
     end
 
 end
 
--- TAB
-
+-- UI TAB
 local MainTab = Window:CreateTab("Main")
+
+MainTab:CreateToggle({
+   Name = "Coin Farm (Walk)",
+   CurrentValue = false,
+   Callback = function(v)
+
+        Settings.CoinFarm = v
+
+        if v then
+            task.spawn(startCoinFarm)
+        end
+
+   end
+})
 
 MainTab:CreateToggle({
    Name = "Murderer ESP",
    CurrentValue = false,
    Callback = function(v)
-       Settings.MurderESP = v
+
+        Settings.MurderESP = v
+
    end
 })
 
@@ -120,27 +188,23 @@ MainTab:CreateToggle({
    Name = "Sheriff ESP",
    CurrentValue = false,
    Callback = function(v)
-       Settings.SheriffESP = v
-   end
-})
 
-MainTab:CreateToggle({
-   Name = "Coin Farm",
-   CurrentValue = false,
-   Callback = function(v)
-       Settings.CoinFarm = v
-       if v then
-           task.spawn(coinFarm)
-       end
+        Settings.SheriffESP = v
+
    end
 })
 
 MainTab:CreateSlider({
    Name = "Speed",
-   Range = {16,150},
+   Range = {16,120},
    Increment = 1,
    CurrentValue = 16,
    Callback = function(v)
-       LocalPlayer.Character.Humanoid.WalkSpeed = v
+
+        local char = LocalPlayer.Character
+        if char then
+            char.Humanoid.WalkSpeed = v
+        end
+
    end
 })
