@@ -3,7 +3,7 @@ local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local Window = Rayfield:CreateWindow({
    Name = "Emfein Hub - Brookhaven",
    LoadingTitle = "Brookhaven RP Mod",
-   LoadingSubtitle = "v2.0 - Fix Update",
+   LoadingSubtitle = "v2.0 Update",
    ConfigurationSaving = { Enabled = false },
    KeySystem = false
 })
@@ -11,8 +11,10 @@ local Window = Rayfield:CreateWindow({
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+local mouse = LocalPlayer:GetMouse()
 
 local Settings = {
    Fly = false,
@@ -21,11 +23,15 @@ local Settings = {
    SpeedHack = false,
    InfiniteJump = false,
    ESPBox = false,
-   ESPTracer = false,
-   SelectedPlayer = ""
+   SelectedPlayer = "",
+   Spin = false,
+   SpinSpeed = 50,
+   ClickTP = false,
+   Noclip = false,
+   Follow = false
 }
 
--- [DÜZELTME] Oyuncu Listesi Fonksiyonu
+-- PLAYER LIST
 local function getPlayerList()
     local list = {}
     for _, p in pairs(Players:GetPlayers()) do
@@ -33,149 +39,322 @@ local function getPlayerList()
             table.insert(list, p.Name)
         end
     end
-    if #list == 0 then table.insert(list, "Oyuncu Yok") end
+    if #list == 0 then table.insert(list,"Oyuncu Yok") end
     return list
 end
 
--- [ESP SİSTEMİ]
+-- ESP
 local function createESP(player)
+
     if player == LocalPlayer then return end
+
     local box = Drawing.new("Square")
     box.Thickness = 2
-    box.Color = Color3.fromRGB(0, 255, 0)
+    box.Color = Color3.fromRGB(0,255,0)
     box.Visible = false
 
-    local connection
-    connection = RunService.RenderStepped:Connect(function()
+    RunService.RenderStepped:Connect(function()
+
         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and Settings.ESPBox then
+
             local root = player.Character.HumanoidRootPart
-            local pos, onScreen = Camera:WorldToViewportPoint(root.Position)
+            local pos,onScreen = Camera:WorldToViewportPoint(root.Position)
+
             if onScreen then
-                box.Size = Vector2.new(2000 / pos.Z, 3000 / pos.Z)
-                box.Position = Vector2.new(pos.X - box.Size.X / 2, pos.Y - box.Size.Y / 2)
+                box.Size = Vector2.new(2000/pos.Z,3000/pos.Z)
+                box.Position = Vector2.new(pos.X-box.Size.X/2,pos.Y-box.Size.Y/2)
                 box.Visible = true
-            else box.Visible = false end
+            else
+                box.Visible = false
+            end
+
         else
             box.Visible = false
-            if not player.Parent then connection:Disconnect(); box:Remove() end
         end
+
     end)
+
 end
 
--- [HAREKET SEKEMESİ]
+-- MOVEMENT TAB
 local MovementTab = Window:CreateTab("Hareket")
 
+-- FLY
 MovementTab:CreateToggle({
-   Name = "Uçma (Fly)",
+   Name = "Fly",
    CurrentValue = false,
-   SectionParent = MovementTab,
-   Info = "WASD ile kontrol edilir, durunca havada asılı kalır.", -- Toolbox Açıklaması
    Callback = function(v)
+
       Settings.Fly = v
+
       local char = LocalPlayer.Character
-      if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-      local root = char.HumanoidRootPart
-      
+      if not char then return end
+
+      local root = char:FindFirstChild("HumanoidRootPart")
+      if not root then return end
+
       if v then
-          local bv = Instance.new("BodyVelocity", root)
-          bv.Name = "FlyVel"
-          bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-          
-          local bg = Instance.new("BodyGyro", root)
-          bg.Name = "FlyGyro"
-          bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+
+          local bv = Instance.new("BodyVelocity")
+          bv.MaxForce = Vector3.new(math.huge,math.huge,math.huge)
+          bv.Parent = root
+
+          local bg = Instance.new("BodyGyro")
+          bg.MaxTorque = Vector3.new(math.huge,math.huge,math.huge)
+          bg.Parent = root
 
           task.spawn(function()
+
               while Settings.Fly do
-                  bv.Velocity = char.Humanoid.MoveDirection * Settings.FlySpeed
+
+                  local moveDir = Vector3.zero
+                  local cam = Camera.CFrame
+
+                  if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                      moveDir += cam.LookVector
+                  end
+
+                  if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                      moveDir -= cam.LookVector
+                  end
+
+                  if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                      moveDir -= cam.RightVector
+                  end
+
+                  if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                      moveDir += cam.RightVector
+                  end
+
+                  if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                      moveDir += Vector3.new(0,1,0)
+                  end
+
+                  if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+                      moveDir -= Vector3.new(0,1,0)
+                  end
+
+                  bv.Velocity = moveDir * Settings.FlySpeed
                   bg.CFrame = Camera.CFrame
+
                   task.wait()
+
               end
-              bv:Destroy(); bg:Destroy()
+
+              bv:Destroy()
+              bg:Destroy()
+
           end)
+
       end
+
    end
 })
 
+-- SPEED
 MovementTab:CreateSlider({
-   Name = "Hız Seviyesi",
-   Range = {16, 250},
+   Name = "Speed",
+   Range = {16,250},
    Increment = 1,
    CurrentValue = 16,
-   Info = "Hem yürüme hem uçma hızını etkiler.",
-   Callback = function(v) 
-      Settings.WalkSpeed = v 
+   Callback = function(v)
+
+      Settings.WalkSpeed = v
       Settings.FlySpeed = v
-      if Settings.SpeedHack then LocalPlayer.Character.Humanoid.WalkSpeed = v end
+
+      if Settings.SpeedHack and LocalPlayer.Character then
+          LocalPlayer.Character.Humanoid.WalkSpeed = v
+      end
+
    end
 })
 
 MovementTab:CreateToggle({
    Name = "Speed Hack",
    CurrentValue = false,
-   Info = "Yürüme hızını aktifleştirir.",
    Callback = function(v)
+
       Settings.SpeedHack = v
-      LocalPlayer.Character.Humanoid.WalkSpeed = v and Settings.WalkSpeed or 16
+
+      if LocalPlayer.Character then
+          LocalPlayer.Character.Humanoid.WalkSpeed = v and Settings.WalkSpeed or 16
+      end
+
    end
 })
 
+-- INFINITE JUMP
 MovementTab:CreateToggle({
-   Name = "Sınırsız Zıplama",
+   Name = "Infinite Jump",
    CurrentValue = false,
-   Info = "Zıplama engelini kaldırır.",
-   Callback = function(v) Settings.InfiniteJump = v end
+   Callback = function(v)
+      Settings.InfiniteJump = v
+   end
 })
 
--- [GÖRSEL SEKEMESİ]
+-- NOCLIP
+MovementTab:CreateToggle({
+   Name = "Noclip",
+   CurrentValue = false,
+   Callback = function(v)
+      Settings.Noclip = v
+   end
+})
+
+RunService.Stepped:Connect(function()
+
+    if Settings.Noclip and LocalPlayer.Character then
+
+        for _,v in pairs(LocalPlayer.Character:GetDescendants()) do
+            if v:IsA("BasePart") then
+                v.CanCollide = false
+            end
+        end
+
+    end
+
+end)
+
+-- SPIN
+MovementTab:CreateToggle({
+   Name = "Spin",
+   CurrentValue = false,
+   Callback = function(v)
+      Settings.Spin = v
+   end
+})
+
+MovementTab:CreateSlider({
+   Name = "Spin Speed",
+   Range = {10,300},
+   Increment = 5,
+   CurrentValue = 50,
+   Callback = function(v)
+      Settings.SpinSpeed = v
+   end
+})
+
+RunService.RenderStepped:Connect(function()
+
+    if Settings.Spin and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+
+        local root = LocalPlayer.Character.HumanoidRootPart
+        root.CFrame = root.CFrame * CFrame.Angles(0,math.rad(Settings.SpinSpeed),0)
+
+    end
+
+end)
+
+-- VISUAL
 local VisualTab = Window:CreateTab("Görsel")
+
 VisualTab:CreateToggle({
-   Name = "Oyuncu Kutuları (ESP)",
+   Name = "Player ESP",
    CurrentValue = false,
-   Info = "Oyuncuların yerini kutu içine alarak gösterir.",
-   Callback = function(v) Settings.ESPBox = v end
+   Callback = function(v)
+      Settings.ESPBox = v
+   end
 })
 
--- [IŞINLANMA SEKEMESİ]
-local TeleportTab = Window:CreateTab("Işınlanma")
+-- TELEPORT
+local TeleportTab = Window:CreateTab("Teleport")
 
 local pDropdown = TeleportTab:CreateDropdown({
-   Name = "Oyuncu Seçiniz",
+   Name = "Player",
    Options = getPlayerList(),
    CurrentOption = {""},
    MultipleOptions = false,
-   Info = "Gitmek istediğiniz oyuncuyu listeden bulun.",
    Callback = function(Option)
       Settings.SelectedPlayer = Option[1]
    end
 })
 
 TeleportTab:CreateButton({
-   Name = "Listeyi Güncelle",
-   Info = "Yeni giren oyuncuları listeye eklemek için basın.",
+   Name = "Refresh Player List",
    Callback = function()
-      pDropdown:Refresh(getPlayerList(), true)
+      pDropdown:Refresh(getPlayerList(),true)
    end
 })
 
 TeleportTab:CreateButton({
-   Name = "Seçili Kişiye Git",
-   Info = "Seçtiğiniz oyuncunun yanına ışınlar.",
+   Name = "Teleport To Player",
    Callback = function()
+
       local target = Players:FindFirstChild(Settings.SelectedPlayer)
+
       if target and target.Character then
-          LocalPlayer.Character.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame * CFrame.new(0, 3, 0)
-      else
-          Rayfield:Notify({Title = "Hata", Content = "Oyuncu seçilmedi veya oyunda değil!", Duration = 2})
+          LocalPlayer.Character.HumanoidRootPart.CFrame =
+          target.Character.HumanoidRootPart.CFrame * CFrame.new(0,3,0)
       end
+
    end
 })
 
--- [Zıplama Event]
-UserInputService.JumpRequest:Connect(function()
-    if Settings.InfiniteJump then LocalPlayer.Character.Humanoid:ChangeState("Jumping") end
+-- FOLLOW PLAYER
+TeleportTab:CreateToggle({
+   Name = "Follow Player",
+   CurrentValue = false,
+   Callback = function(v)
+      Settings.Follow = v
+   end
+})
+
+RunService.RenderStepped:Connect(function()
+
+    if Settings.Follow then
+
+        local target = Players:FindFirstChild(Settings.SelectedPlayer)
+
+        if target and target.Character and LocalPlayer.Character then
+
+            local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local targetRoot = target.Character:FindFirstChild("HumanoidRootPart")
+
+            if root and targetRoot then
+                root.CFrame = targetRoot.CFrame * CFrame.new(0,0,3)
+            end
+
+        end
+
+    end
+
 end)
 
--- Başlat
-for _, p in pairs(Players:GetPlayers()) do createESP(p) end
+-- CLICK TELEPORT
+TeleportTab:CreateToggle({
+   Name = "Click Teleport",
+   CurrentValue = false,
+   Callback = function(v)
+      Settings.ClickTP = v
+   end
+})
+
+mouse.Button1Down:Connect(function()
+
+    if Settings.ClickTP and LocalPlayer.Character then
+
+        local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+
+        if root then
+            root.CFrame = CFrame.new(mouse.Hit.Position + Vector3.new(0,3,0))
+        end
+
+    end
+
+end)
+
+-- INFINITE JUMP EVENT
+UserInputService.JumpRequest:Connect(function()
+
+    if Settings.InfiniteJump and LocalPlayer.Character then
+        LocalPlayer.Character.Humanoid:ChangeState("Jumping")
+    end
+
+end)
+
+-- INIT ESP
+for _, p in pairs(Players:GetPlayers()) do
+    createESP(p)
+end
+
 Players.PlayerAdded:Connect(createESP)
