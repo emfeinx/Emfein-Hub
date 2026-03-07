@@ -3,7 +3,7 @@ local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local Window = Rayfield:CreateWindow({
    Name = "Emfein Hub - Brookhaven",
    LoadingTitle = "Brookhaven RP Mod",
-   LoadingSubtitle = "v2.0 Update",
+   LoadingSubtitle = "v3 Update",
    ConfigurationSaving = { Enabled = false },
    KeySystem = false
 })
