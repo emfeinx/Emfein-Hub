@@ -354,22 +354,3 @@ Callback=function()
 TeleportService:Teleport(game.PlaceId,LocalPlayer)
 end
 })
-
--- CLICK TP
-UIS.InputBegan:Connect(function(input,gp)
-
-if gp then return end
-
-if input.UserInputType==Enum.UserInputType.MouseButton1 then
-
-local mouse=LocalPlayer:GetMouse()
-
-if mouse.Target then
-
-LocalPlayer.Character.HumanoidRootPart.CFrame=CFrame.new(mouse.Hit.Position+Vector3.new(0,3,0))
-
-end
-
-end
-
-end)
